@@ -80,7 +80,21 @@ void KVServer::stop() {
         return;
     }
 
-    // Close listen socket to unblock accept()
+    // On POSIX Linux, close() does not unblock a blocking accept() call.
+    // Making a loopback connection cleanly unblocks accept() across all platforms.
+    if (port_ > 0) {
+        socket_t wakeup = socket(AF_INET, SOCK_STREAM, 0);
+        if (wakeup != INVALID_SOCK) {
+            sockaddr_in addr{};
+            addr.sin_family = AF_INET;
+            addr.sin_port = htons(port_);
+            inet_pton(AF_INET, host_.c_str(), &addr.sin_addr);
+            connect(wakeup, (sockaddr*)&addr, sizeof(addr));
+            close_socket(wakeup);
+        }
+    }
+
+    // Close listen socket
     listen_sock_.reset();
 
     if (accept_thread_.joinable()) {
@@ -109,10 +123,13 @@ void KVServer::listen_loop() {
         socklen_t addr_len = sizeof(client_addr);
 #endif
         socket_t client_sock = accept(listen_sock_.get(), (sockaddr*)&client_addr, &addr_len);
-        if (client_sock == INVALID_SOCK) {
-            if (!running_.load()) {
-                break;
+        if (!running_.load()) {
+            if (client_sock != INVALID_SOCK) {
+                close_socket(client_sock);
             }
+            break;
+        }
+        if (client_sock == INVALID_SOCK) {
             continue;
         }
 
