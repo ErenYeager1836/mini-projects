@@ -1,0 +1,54 @@
+# C++ / CMake build outputs
+build/
+bin/
+out/
+dist/
+*.exe
+*.obj
+*.o
+*.a
+*.lib
+*.dll
+*.so
+*.dylib
+*.pdb
+*.ilk
+
+# CMake and IDE files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+.vs/
+.vscode/
+*.user
+CMakeSettings.json
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# Databases and runtime data
+*.db
+*.sqlite
+*.sqlite3
+data/
+*.rdb
+*.aof
+dump.kv
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# OS specific
+.DS_Store
+Thumbs.db

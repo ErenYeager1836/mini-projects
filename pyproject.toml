@@ -1,0 +1,12 @@
+[tool.pytest.ini_options]
+addopts = "--import-mode=importlib"
+pythonpath = [
+    "url-shortener",
+    "rate-limiter",
+    "task-queue"
+]
+testpaths = [
+    "url-shortener/tests",
+    "rate-limiter/tests",
+    "task-queue/tests"
+]
