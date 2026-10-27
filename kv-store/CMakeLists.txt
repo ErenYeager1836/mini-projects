@@ -15,6 +15,7 @@ include_directories(include)
 
 # Core library shared across server, client, and tests
 add_library(kv_core STATIC
+    src/aof.cpp
     src/kv_store.cpp
     src/kv_protocol.cpp
     src/kv_server.cpp

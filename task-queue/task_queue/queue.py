@@ -12,6 +12,7 @@ import time
 import traceback
 from typing import Any, Callable, Dict, List, Optional
 
+from task_queue.dlq import DeadLetterQueue
 from task_queue.job import Job, JobStatus, QueueStats
 
 
@@ -29,6 +30,9 @@ class TaskQueue:
         self._delayed_heap: List[tuple[float, int, Job]] = []
         self._delayed_lock = threading.Lock()
         self._heap_counter = 0
+
+        # Dead Letter Queue for permanently failed/exhausted jobs
+        self.dlq = DeadLetterQueue()
 
         # Registry for telemetry and status lookups
         self._registry: Dict[str, Job] = {}
@@ -146,7 +150,8 @@ class TaskQueue:
         s = QueueStats(
             total=len(jobs),
             active_workers=active_workers,
-            queue_depth=self._ready_queue.qsize()
+            queue_depth=self._ready_queue.qsize(),
+            dead_letter=self.dlq.size()
         )
         for j in jobs:
             if j.status == JobStatus.PENDING:
@@ -247,3 +252,16 @@ class TaskQueue:
             else:
                 job.status = JobStatus.FAILED
                 job.completed_at = time.time()
+                self.dlq.add(job)
+
+    def re_enqueue(self, job: Job) -> None:
+        """Re-enqueues an existing job (e.g. from the Dead Letter Queue)."""
+        job.status = JobStatus.PENDING
+        job.scheduled_at = time.time()
+        with self._registry_lock:
+            self._registry[job.id] = job
+        self._ready_queue.put(job)
+
+    def replay_dead_letter(self, job_id: str) -> Optional[Job]:
+        """Replays a quarantined job from the Dead Letter Queue back into active execution."""
+        return self.dlq.replay(job_id, self)

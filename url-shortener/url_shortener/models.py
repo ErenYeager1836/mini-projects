@@ -20,6 +20,7 @@ class ShortenRequest(BaseModel):
     url: str = Field(..., description="Target destination URL (must be HTTP or HTTPS)")
     custom_code: Optional[str] = Field(None, description="Optional custom alphanumeric alias (3-30 chars)")
     ttl_seconds: Optional[int] = Field(None, ge=1, le=31536000, description="Optional time-to-live in seconds (max 1 year)")
+    use_snowflake: Optional[bool] = Field(False, description="Use 64-bit Snowflake ID generator instead of random Base62")
 
     @field_validator("url")
     @classmethod

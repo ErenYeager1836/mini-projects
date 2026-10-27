@@ -10,10 +10,16 @@ namespace kvstore {
 
 namespace fs = std::filesystem;
 
-KVStore::KVStore(std::string persistence_file)
-    : persistence_file_(std::move(persistence_file)) {
+KVStore::KVStore(std::string persistence_file, std::string aof_file, AofFsyncPolicy aof_policy)
+    : persistence_file_(std::move(persistence_file)), aof_file_(std::move(aof_file)) {
     if (!persistence_file_.empty() && fs::exists(persistence_file_)) {
         load(persistence_file_);
+    }
+    if (!aof_file_.empty()) {
+        if (fs::exists(aof_file_)) {
+            replay_aof(aof_file_);
+        }
+        enable_aof(aof_file_, aof_policy);
     }
 }
 
@@ -32,6 +38,10 @@ void KVStore::set(const std::string& key, const std::string& value, std::optiona
     }
 
     table_[key] = std::move(entry);
+
+    if (aof_) {
+        aof_->log_set(key, value, ttl_seconds);
+    }
 }
 
 std::optional<std::string> KVStore::get(const std::string& key) {
@@ -70,8 +80,13 @@ bool KVStore::del(const std::string& key) {
     }
     auto now = std::chrono::steady_clock::now();
     bool expired = it->second.is_expired(now);
+    bool existed = !expired;
     table_.erase(it);
-    return !expired;
+
+    if (existed && aof_) {
+        aof_->log_del(key);
+    }
+    return existed;
 }
 
 bool KVStore::expire(const std::string& key, int64_t ttl_seconds) {
@@ -88,9 +103,56 @@ bool KVStore::expire(const std::string& key, int64_t ttl_seconds) {
 
     if (ttl_seconds > 0) {
         it->second.expires_at = now + std::chrono::seconds(ttl_seconds);
+        if (aof_) {
+            aof_->log_expire(key, ttl_seconds);
+        }
     } else {
         // Immediate expiration
         table_.erase(it);
+        if (aof_) {
+            aof_->log_del(key);
+        }
+    }
+    return true;
+}
+
+void KVStore::enable_aof(const std::string& aof_file, AofFsyncPolicy policy) {
+    std::unique_lock<std::shared_mutex> lock(mutex_);
+    aof_file_ = aof_file;
+    aof_ = std::make_unique<AofLogger>(aof_file, policy);
+}
+
+bool KVStore::replay_aof(const std::string& aof_file) {
+    auto records = AofLogger::replay(aof_file);
+    if (records.empty() && !fs::exists(aof_file)) {
+        return false;
+    }
+
+    std::unique_lock<std::shared_mutex> lock(mutex_);
+    auto now = std::chrono::steady_clock::now();
+
+    for (const auto& rec : records) {
+        if (rec.op == "SET") {
+            Entry entry;
+            entry.value = rec.value;
+            if (rec.ttl > 0) {
+                entry.expires_at = now + std::chrono::seconds(rec.ttl);
+            } else {
+                entry.expires_at = std::nullopt;
+            }
+            table_[rec.key] = std::move(entry);
+        } else if (rec.op == "DEL") {
+            table_.erase(rec.key);
+        } else if (rec.op == "EXPIRE") {
+            auto it = table_.find(rec.key);
+            if (it != table_.end()) {
+                if (rec.ttl > 0) {
+                    it->second.expires_at = now + std::chrono::seconds(rec.ttl);
+                } else {
+                    table_.erase(it);
+                }
+            }
+        }
     }
     return true;
 }

@@ -1,7 +1,10 @@
 #pragma once
 
+#include "aof.hpp"
+
 #include <chrono>
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <shared_mutex>
 #include <string>
@@ -23,11 +26,11 @@ struct Entry {
 };
 
 /**
- * Thread-safe In-Memory Key-Value Storage Engine with TTL expiration and disk persistence.
+ * Thread-safe In-Memory Key-Value Storage Engine with TTL expiration, snapshots, and AOF logging.
  */
 class KVStore {
 public:
-    explicit KVStore(std::string persistence_file = "");
+    explicit KVStore(std::string persistence_file = "", std::string aof_file = "", AofFsyncPolicy aof_policy = AofFsyncPolicy::Always);
     ~KVStore();
 
     // Core operations
@@ -44,6 +47,10 @@ public:
     bool save(const std::string& filename = "");
     bool load(const std::string& filename = "");
 
+    // Append-Only File (AOF)
+    void enable_aof(const std::string& aof_file, AofFsyncPolicy policy = AofFsyncPolicy::Always);
+    bool replay_aof(const std::string& aof_file);
+
     // Expiry sweep
     size_t cleanup_expired();
 
@@ -51,6 +58,8 @@ private:
     mutable std::shared_mutex mutex_;
     std::unordered_map<std::string, Entry> table_;
     std::string persistence_file_;
+    std::string aof_file_;
+    std::unique_ptr<AofLogger> aof_;
 
     // Internal helper called while holding a lock
     bool is_expired_locked(const std::string& key, std::chrono::steady_clock::time_point now) const;

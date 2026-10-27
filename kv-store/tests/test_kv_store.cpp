@@ -196,6 +196,41 @@ void test_tcp_server_client_roundtrip() {
     std::cout << "    PASSED\n";
 }
 
+void test_aof_persistence_and_replay() {
+    std::cout << "[+] Running test_aof_persistence_and_replay...\n";
+    const std::string aof_file = "test_run.aof";
+    if (std::filesystem::exists(aof_file)) {
+        std::filesystem::remove(aof_file);
+    }
+
+    {
+        // Session 1: Write operations with AOF enabled
+        kvstore::KVStore store("", aof_file, kvstore::AofFsyncPolicy::Always);
+        store.set("user:1", "alice");
+        store.set("user:2", "bob", 3600);
+        store.set("user:3", "charlie");
+        store.del("user:3");
+        store.expire("user:1", 7200);
+    }
+
+    {
+        // Session 2: Crash recovery replay from AOF
+        kvstore::KVStore store("", aof_file);
+        assert(store.get("user:1").has_value());
+        assert(store.get("user:1").value() == "alice");
+        assert(store.ttl("user:1") > 0);
+
+        assert(store.get("user:2").has_value());
+        assert(store.get("user:2").value() == "bob");
+        assert(store.ttl("user:2") > 0);
+
+        assert(!store.get("user:3").has_value()); // Was deleted in AOF stream
+    }
+
+    std::filesystem::remove(aof_file);
+    std::cout << "    PASSED\n";
+}
+
 int main() {
     std::cout << "=== Running kv-store test suite ===\n";
     kvstore::SocketSubsystem::init();
@@ -206,8 +241,9 @@ int main() {
     test_protocol_handler();
     test_concurrent_multithreaded_access();
     test_tcp_server_client_roundtrip();
+    test_aof_persistence_and_replay();
 
     kvstore::SocketSubsystem::cleanup();
-    std::cout << "=== All 6 kv-store tests passed successfully! ===\n";
+    std::cout << "=== All 7 kv-store tests passed successfully! ===\n";
     return 0;
 }

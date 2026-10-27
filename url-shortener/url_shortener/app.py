@@ -13,6 +13,7 @@ from fastapi.responses import RedirectResponse
 from url_shortener.database import Database
 from url_shortener.models import AnalyticsResponse, ShortenRequest, ShortenResponse
 from url_shortener.shortener import generate_short_code
+from url_shortener.snowflake import default_snowflake
 
 
 def create_app(db: Optional[Database] = None) -> FastAPI:
@@ -70,7 +71,7 @@ def create_app(db: Optional[Database] = None) -> FastAPI:
             # Auto-generate with collision retry loop
             inserted = False
             for _ in range(5):
-                candidate = generate_short_code()
+                candidate = default_snowflake.generate_code() if payload.use_snowflake else generate_short_code()
                 if db_instance.insert_url(
                     short_code=candidate,
                     target_url=payload.url,

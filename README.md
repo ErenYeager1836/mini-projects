@@ -230,7 +230,7 @@ timeline
 - [x] Custom vanity alias validation and collision handling.
 - [x] SQLite WAL (Write-Ahead Logging) storage with automatic TTL expiry enforcement.
 - [x] Real-time click analytics counter and timestamp tracking.
-- [ ] **Distributed Key Generation**: Integrate a 64-bit Twitter Snowflake / ZooKeeper range coordination service for distributed worker nodes.
+- [x] **Distributed Key Generation**: 64-bit Twitter Snowflake ID generator with custom epoch, worker node partitioning, and Base62 encoding.
 - [ ] **Hotspot Cache Layer**: Add a write-through Redis/LRU cache for high-frequency redirects to achieve sub-millisecond redirect latency.
 - [ ] **Geographic & Referrer Analytics**: Extract GeoIP locations, device types, and referrer headers for rich telemetry dashboards.
 - [ ] **Anti-Abuse Engine**: Google Safe Browsing API integration to prevent malicious redirects and phishing targets.
@@ -240,7 +240,7 @@ timeline
 - [x] Active background expiration sweeps + passive on-access TTL eviction.
 - [x] Multithreaded non-blocking TCP server and interactive CLI client.
 - [x] Length-prefixed binary snapshot disk persistence (`SAVE` / restore).
-- [ ] **Append-Only File (AOF)**: Implement write-ahead logging with configurable `fsync` policies (`always`, `everysec`, `no`) and background log compaction.
+- [x] **Append-Only File (AOF)**: Write-ahead logging with configurable `fsync` policies (`always`, `everysec`, `no`) and deterministic startup crash-recovery playback.
 - [ ] **RESP Protocol Compliance**: Full compliance with REdis Serialization Protocol for interoperability with standard Redis clients (`redis-cli`, Jedis, redis-py).
 - [ ] **Rich Data Structures**: Add native support for Hashes (`HSET`/`HGET`), Doubly-Linked Lists (`LPUSH`/`RPOP`), and Sets (`SADD`/`SMEMBERS`).
 - [ ] **High Availability**: Master-replica asynchronous replication stream and Sentinel-style automatic failover.
@@ -250,8 +250,8 @@ timeline
 - [x] Sliding Window Log algorithm enforcing rolling time interval limits.
 - [x] Synchronous and asynchronous function decorator (`@rate_limit`) with parameterized key extractors.
 - [x] High-throughput benchmarking suite (>600k ops/sec).
+- [x] **Sliding Window Counter**: Cloudflare-style hybrid window counters ($O(1)$ memory and compute) with weighted time decay.
 - [ ] **Distributed Redis Backend**: Implement atomic sliding window algorithms via Redis Lua scripts (`EVALSHA`) to ensure atomic multi-node quota enforcement.
-- [ ] **Leaky Bucket & Sliding Window Counter**: Add queue-based traffic smoothing (Leaky Bucket) and memory-efficient hybrid window counters.
 - [ ] **Multi-Tier Tenant Quotas**: Dynamic policy resolver mapping API tokens to custom limits (e.g., Free: 100 req/min, Enterprise: 10,000 req/min).
 - [ ] **Observability**: Prometheus metrics export for scrape endpoints (`ratelimit_tokens_remaining`, `ratelimit_rejections_total`).
 
@@ -260,8 +260,8 @@ timeline
 - [x] Priority delayed task execution using a synchronized min-heap.
 - [x] Exponential backoff retry logic (`delay * 2^retry`) with jitter mitigation.
 - [x] Real-time terminal status dashboard and interactive demonstration.
+- [x] **Dead Letter Queue (DLQ)**: Quarantine repository for exhausted jobs with error inspection, traceback auditing, and replay capabilities.
 - [ ] **Durable Broker Connectors**: Extensible backend interface supporting Redis Streams, RabbitMQ (AMQP), and AWS SQS.
-- [ ] **Dead Letter Queue (DLQ)**: Quarantine queue for exhausted jobs with administrative inspection, payload viewing, and replay capabilities.
 - [ ] **Job Prioritization**: Strict Priority Queues and Weighted Fair Queuing (WFQ) to prevent low-priority batch jobs from starving high-priority user actions.
 - [ ] **Graceful Shutdown**: Signal handling (`SIGTERM`/`SIGINT`) with in-flight worker draining and configurable timeout bounds.
 

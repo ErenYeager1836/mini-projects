@@ -74,5 +74,6 @@ class QueueStats:
     failed: int = 0
     retrying: int = 0
     cancelled: int = 0
+    dead_letter: int = 0
     active_workers: int = 0
     queue_depth: int = 0

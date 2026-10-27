@@ -4,6 +4,7 @@ Rate Limiter library: Token Bucket and Sliding Window implementations with decor
 
 from rate_limiter.base import BaseRateLimiter, RateLimitExceeded, RateLimitResult
 from rate_limiter.decorator import rate_limit
+from rate_limiter.sliding_counter import SlidingWindowCounterLimiter
 from rate_limiter.sliding_window import SlidingWindowLimiter
 from rate_limiter.token_bucket import TokenBucketLimiter
 
@@ -13,5 +14,6 @@ __all__ = [
     "RateLimitResult",
     "TokenBucketLimiter",
     "SlidingWindowLimiter",
+    "SlidingWindowCounterLimiter",
     "rate_limit",
 ]
