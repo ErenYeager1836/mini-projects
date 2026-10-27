@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  url-shortener:
+    build:
+      context: ./url-shortener
+      dockerfile: Dockerfile
+    container_name: mini-projects-url-shortener
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - url-shortener-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  url-shortener-data:
