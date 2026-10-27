@@ -210,6 +210,63 @@ c581a910   | corrupt_batch_job      | FAILED     | 2/2      | -          | ERR: 
 
 ---
 
+## Systems Engineering Roadmap
+
+Each tool in this monorepo is engineered as a clean, working core system. Below is the multi-phase evolution roadmap for production scale:
+
+```mermaid
+timeline
+    title Backend Systems Engineering Roadmap
+    Phase 1 : url-shortener Base62 & SQLite WAL : kv-store C++ in-memory & snapshots : rate-limiter Token Bucket & Sliding Window : task-queue in-process worker pool
+    Phase 2 : Distributed ID Generation (Snowflake) : AOF Log & RESP Protocol Compliance : Redis Atomic Lua Script Backend : Dead Letter Queue (DLQ) & Persistence
+    Phase 3 : Hotspot Read Cache & GeoIP Analytics : Master-Replica Asynchronous Replication : Dynamic Tiering & Quota Enforcement : RabbitMQ / Redis Streams Broker Plugins
+    Phase 4 : Multi-region Active-Active Architecture : Consistent Hash Ring Clustering : Prometheus / OpenTelemetry Exporters : Distributed Distributed Tracing & Dashboard
+```
+
+### Detailed Subproject Roadmap
+
+#### 1. `url-shortener`
+- [x] Base62 encoding engine with 6-character entropy space ($62^6 \approx 56.8\text{B}$ URLs).
+- [x] Custom vanity alias validation and collision handling.
+- [x] SQLite WAL (Write-Ahead Logging) storage with automatic TTL expiry enforcement.
+- [x] Real-time click analytics counter and timestamp tracking.
+- [ ] **Distributed Key Generation**: Integrate a 64-bit Twitter Snowflake / ZooKeeper range coordination service for distributed worker nodes.
+- [ ] **Hotspot Cache Layer**: Add a write-through Redis/LRU cache for high-frequency redirects to achieve sub-millisecond redirect latency.
+- [ ] **Geographic & Referrer Analytics**: Extract GeoIP locations, device types, and referrer headers for rich telemetry dashboards.
+- [ ] **Anti-Abuse Engine**: Google Safe Browsing API integration to prevent malicious redirects and phishing targets.
+
+#### 2. `kv-store`
+- [x] In-memory concurrent hash table with reader-writer locking (`std::shared_mutex`).
+- [x] Active background expiration sweeps + passive on-access TTL eviction.
+- [x] Multithreaded non-blocking TCP server and interactive CLI client.
+- [x] Length-prefixed binary snapshot disk persistence (`SAVE` / restore).
+- [ ] **Append-Only File (AOF)**: Implement write-ahead logging with configurable `fsync` policies (`always`, `everysec`, `no`) and background log compaction.
+- [ ] **RESP Protocol Compliance**: Full compliance with REdis Serialization Protocol for interoperability with standard Redis clients (`redis-cli`, Jedis, redis-py).
+- [ ] **Rich Data Structures**: Add native support for Hashes (`HSET`/`HGET`), Doubly-Linked Lists (`LPUSH`/`RPOP`), and Sets (`SADD`/`SMEMBERS`).
+- [ ] **High Availability**: Master-replica asynchronous replication stream and Sentinel-style automatic failover.
+
+#### 3. `rate-limiter`
+- [x] Token Bucket algorithm supporting continuous refills and burst capacity.
+- [x] Sliding Window Log algorithm enforcing rolling time interval limits.
+- [x] Synchronous and asynchronous function decorator (`@rate_limit`) with parameterized key extractors.
+- [x] High-throughput benchmarking suite (>600k ops/sec).
+- [ ] **Distributed Redis Backend**: Implement atomic sliding window algorithms via Redis Lua scripts (`EVALSHA`) to ensure atomic multi-node quota enforcement.
+- [ ] **Leaky Bucket & Sliding Window Counter**: Add queue-based traffic smoothing (Leaky Bucket) and memory-efficient hybrid window counters.
+- [ ] **Multi-Tier Tenant Quotas**: Dynamic policy resolver mapping API tokens to custom limits (e.g., Free: 100 req/min, Enterprise: 10,000 req/min).
+- [ ] **Observability**: Prometheus metrics export for scrape endpoints (`ratelimit_tokens_remaining`, `ratelimit_rejections_total`).
+
+#### 4. `task-queue`
+- [x] Multithreaded worker pool with poison pill prevention.
+- [x] Priority delayed task execution using a synchronized min-heap.
+- [x] Exponential backoff retry logic (`delay * 2^retry`) with jitter mitigation.
+- [x] Real-time terminal status dashboard and interactive demonstration.
+- [ ] **Durable Broker Connectors**: Extensible backend interface supporting Redis Streams, RabbitMQ (AMQP), and AWS SQS.
+- [ ] **Dead Letter Queue (DLQ)**: Quarantine queue for exhausted jobs with administrative inspection, payload viewing, and replay capabilities.
+- [ ] **Job Prioritization**: Strict Priority Queues and Weighted Fair Queuing (WFQ) to prevent low-priority batch jobs from starving high-priority user actions.
+- [ ] **Graceful Shutdown**: Signal handling (`SIGTERM`/`SIGINT`) with in-flight worker draining and configurable timeout bounds.
+
+---
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

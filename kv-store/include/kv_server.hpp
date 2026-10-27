@@ -37,8 +37,6 @@ private:
     SocketGuard listen_sock_;
     std::thread accept_thread_;
     std::thread sweep_thread_;
-    std::vector<std::thread> client_threads_;
-    std::mutex client_threads_mutex_;
 };
 
 } // namespace kvstore

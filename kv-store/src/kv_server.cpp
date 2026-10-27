@@ -1,6 +1,7 @@
 #include "kv_server.hpp"
 #include "kv_protocol.hpp"
 
+#include <cerrno>
 #include <chrono>
 #include <cstring>
 #include <iostream>
@@ -103,15 +104,6 @@ void KVServer::stop() {
     if (sweep_thread_.joinable()) {
         sweep_thread_.join();
     }
-
-    // Join all client worker threads
-    std::lock_guard<std::mutex> lock(client_threads_mutex_);
-    for (auto& th : client_threads_) {
-        if (th.joinable()) {
-            th.join();
-        }
-    }
-    client_threads_.clear();
 }
 
 void KVServer::listen_loop() {
@@ -133,21 +125,47 @@ void KVServer::listen_loop() {
             continue;
         }
 
-        // Spawn detached/managed worker thread for client
-        std::lock_guard<std::mutex> lock(client_threads_mutex_);
-        client_threads_.emplace_back(&KVServer::handle_client, this, client_sock);
+        // Spawn detached worker thread for client
+        std::thread([this, client_sock]() {
+            handle_client(client_sock);
+        }).detach();
     }
 }
 
 void KVServer::handle_client(socket_t raw_sock) {
     SocketGuard sock(raw_sock);
+
+    // Set receive timeout (200ms) so worker can exit promptly if server stops
+#ifdef _WIN32
+    DWORD timeout_ms = 200;
+    setsockopt(sock.get(), SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout_ms, sizeof(timeout_ms));
+#else
+    struct timeval tv;
+    tv.tv_sec = 0;
+    tv.tv_usec = 200000;
+    setsockopt(sock.get(), SOL_SOCKET, SO_RCVTIMEO, (const void*)&tv, sizeof(tv));
+#endif
+
     std::string buffer;
     char chunk[1024];
 
     while (running_.load()) {
         int bytes_read = recv(sock.get(), chunk, sizeof(chunk), 0);
-        if (bytes_read <= 0) {
-            break;
+        if (bytes_read == 0) {
+            break; // Connection gracefully closed by peer
+        }
+        if (bytes_read < 0) {
+#ifdef _WIN32
+            int err = WSAGetLastError();
+            if (err == WSAETIMEDOUT || err == WSAEWOULDBLOCK) {
+                continue; // Timeout expired, loop back and check running_
+            }
+#else
+            if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
+                continue; // Timeout expired, loop back and check running_
+            }
+#endif
+            break; // Hard socket error
         }
 
         buffer.append(chunk, bytes_read);

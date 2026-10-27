@@ -189,7 +189,9 @@ void test_tcp_server_client_roundtrip() {
     assert(send_recv("GET key1") == "$val1\r\n");
     assert(send_recv("DEL key1") == ":1\r\n");
     assert(send_recv("GET key1") == "NIL\r\n");
+    assert(send_recv("QUIT") == "+BYE\r\n");
 
+    guard.reset();
     server.stop();
     std::cout << "    PASSED\n";
 }
