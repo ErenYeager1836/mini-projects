@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
       - uses: actions/checkout@v4
@@ -26,6 +26,21 @@ jobs:
 
       - name: Run kv-store Test Suite
         run: ctest --test-dir build -C Release --output-on-failure
+
+  kv-store-sanitizers:
+    name: ASan & UBSan Memory Verification (Ubuntu)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure CMake with Sanitizers
+        run: cmake -B build-san -S kv-store -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer -g"
+
+      - name: Build with Sanitizers
+        run: cmake --build build-san
+
+      - name: Run Sanitized Test Suite
+        run: ctest --test-dir build-san --output-on-failure
 
   python-mini-projects:
     name: Test & Lint Python Projects (${{ matrix.python-version }})
